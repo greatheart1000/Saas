@@ -1,0 +1,18 @@
+[submodule "Rust_project/vote_project/lib/forge-std"]
+	path = Rust_project/vote_project/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "Rust_project/charity_platform/lib/forge-std"]
+	path = Rust_project/charity_platform/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "Rust_project/charity_platform/lib/openzeppelin-contracts"]
+	path = Rust_project/charity_platform/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "my-project/lib/forge-std"]
+	path = my-project/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "Rust_project/MultiSig_Wallet/lib/forge-std"]
+	path = Rust_project/MultiSig_Wallet/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "Rust_project/MultiSig_Wallet/lib/openzeppelin-contracts"]
+	path = Rust_project/MultiSig_Wallet/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
