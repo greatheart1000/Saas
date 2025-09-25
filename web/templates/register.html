@@ -1,0 +1,99 @@
+{{ define "content" }}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>用户注册</h4>
+            </div>
+            <div class="card-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">邮箱地址</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                        <div class="form-text">密码长度至少8位</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">确认密码</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userType" class="form-label">用户类型</label>
+                        <select class="form-select" id="userType" name="role">
+                            <option value="user">普通用户</option>
+                            <option value="vip">VIP用户</option>
+                            <option value="enterprise">企业客户</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="terms" required>
+                        <label class="form-check-label" for="terms">我同意服务条款和隐私政策</label>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">注册</button>
+                    </div>
+                </form>
+                <div class="mt-3 text-center">
+                    <p>已有账户？ <a href="/login">立即登录</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirmPassword');
+    
+    // 验证密码
+    if (password !== confirmPassword) {
+        alert('两次输入的密码不一致');
+        return;
+    }
+    
+    if (password.length < 8) {
+        alert('密码长度至少8位');
+        return;
+    }
+    
+    const data = {
+        username: formData.get('username'),
+        email: formData.get('email'),
+        password: password,
+        role: formData.get('role')
+    };
+    
+    try {
+        const response = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('注册成功！请登录。');
+            window.location.href = '/login';
+        } else {
+            alert(result.error || '注册失败');
+        }
+    } catch (error) {
+        alert('网络错误：' + error.message);
+    }
+});
+</script>
+{{ end }}

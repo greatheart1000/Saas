@@ -1,0 +1,21 @@
+{{ define "content" }}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="jumbotron bg-primary text-white p-5 rounded">
+            <h1 class="display-4">欢迎使用 SaaS 多租户系统</h1>
+            <p class="lead">现代化的多租户SaaS平台，支持用户注册、登录、权限管理和租户隔离。</p>
+            <hr class="my-4">
+            <p>系统特性：</p>
+            <ul>
+                <li>多租户隔离</li>
+                <li>基于JWT的身份认证</li>
+                <li>角色权限管理</li>
+                <li>用户分级（普通用户、VIP、企业客户）</li>
+                <li>API密钥管理</li>
+            </ul>
+            <a class="btn btn-light btn-lg" href="/register" role="button">立即注册</a>
+            <a class="btn btn-outline-light btn-lg ms-2" href="/login" role="button">用户登录</a>
+        </div>
+    </div>
+</div>
+{{ end }}

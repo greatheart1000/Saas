@@ -1,0 +1,37 @@
+{
+  "results": {
+    "user_normal_test": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwib3JnIjoiMiIsInVzZXJfdHlwZSI6Ik5PUk1BTCIsImlhdCI6MTc1NzE3NzYxMiwiZXhwIjoxNzU3MTgxMjEyfQ.pMD0-teRQMwY9w0CirkH59vt4i-tjSd1ytJ28IOhD7Y",
+      "api_key": "sk-c1ba5bfb8ca228be9f20e60992745435",
+      "user_type": "NORMAL"
+    },
+    "user_vip_test": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwib3JnIjoiMyIsInVzZXJfdHlwZSI6IlZJUCIsImlhdCI6MTc1NzE3NzYxMiwiZXhwIjoxNzU3MTgxMjEyfQ.tNKePK4x2_QF9r7t2qqIskHhZkZqERiim4MoexgSIcc",
+      "api_key": "sk-46cadb6e6358e7e3ca41e164c3da34b1",
+      "user_type": "VIP"
+    },
+    "user_enterprise_test": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwib3JnIjoiNCIsInVzZXJfdHlwZSI6IkVOVEVSUFJJU0UiLCJpYXQiOjE3NTcxNzc2MTMsImV4cCI6MTc1NzE4MTIxM30.c55OdLvLUyNnabktnyplMZAa4Id08CcSwhyjMUoh84M",
+      "api_key": null,
+      "user_type": "ENTERPRISE"
+    }
+  },
+  "report": {
+    "user_normal_test": {
+      "total": 2622,
+      "success": 108,
+      "status_counts": {
+        "200": 108,
+        "429": 2514
+      }
+    },
+    "user_vip_test": {
+      "total": 120,
+      "success": 20,
+      "status_counts": {
+        "200": 20,
+        "0": 100
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: saas-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-saas}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - saas-network
+
+  saas-app:
+    build: .
+    container_name: saas-app
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-saas}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      PORT: ${PORT:-8080}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      - postgres
+    networks:
+      - saas-network
+    volumes:
+      - ./web:/app/web
+
+volumes:
+  postgres_data:
+
+networks:
+  saas-network:
+    driver: bridge

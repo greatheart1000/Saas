@@ -1,0 +1,146 @@
+{{ define "content" }}
+<div class="row">
+    <div class="col-12">
+        <h2>控制台</h2>
+        <p>欢迎使用SaaS多租户系统控制台</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">用户管理</h5>
+                <p class="card-text">管理您的用户账户和权限设置。</p>
+                <a href="#" class="btn btn-light">管理用户</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">权限管理</h5>
+                <p class="card-text">配置角色和权限，确保系统安全。</p>
+                <a href="#" class="btn btn-light">管理权限</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title">API密钥</h5>
+                <p class="card-text">生成和管理API密钥，进行程序访问。</p>
+                <a href="#" class="btn btn-light">管理密钥</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>用户信息</h5>
+            </div>
+            <div class="card-body">
+                <div id="userInfo">
+                    <p>加载用户信息中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>系统状态</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 id="totalUsers">0</h4>
+                            <p>总用户数</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 id="activeUsers">0</h4>
+                            <p>活跃用户</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 id="totalRoles">0</h4>
+                            <p>角色数量</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 id="totalPermissions">0</h4>
+                            <p>权限数量</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserInfo();
+    loadSystemStats();
+});
+
+function loadUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userInfoDiv = document.getElementById('userInfo');
+    
+    if (user && user.id) {
+        userInfoDiv.innerHTML = `
+            <p><strong>用户名：</strong> ${user.username}</p>
+            <p><strong>邮箱：</strong> ${user.email}</p>
+            <p><strong>角色：</strong> ${getRoleName(user.role)}</p>
+            <p><strong>状态：</strong> ${user.active ? '激活' : '未激活'}</p>
+            <p><strong>注册时间：</strong> ${new Date(user.created_at).toLocaleString()}</p>
+        `;
+    } else {
+        userInfoDiv.innerHTML = '<p class="text-danger">无法加载用户信息</p>';
+    }
+}
+
+function getRoleName(role) {
+    const roleNames = {
+        'user': '普通用户',
+        'vip': 'VIP用户',
+        'enterprise': '企业客户',
+        'admin': '管理员'
+    };
+    return roleNames[role] || role;
+}
+
+async function loadSystemStats() {
+    try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('/api/v1/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const users = await response.json();
+            const activeUsers = users.filter(user => user.active).length;
+            
+            document.getElementById('totalUsers').textContent = users.length;
+            document.getElementById('activeUsers').textContent = activeUsers;
+        }
+    } catch (error) {
+        console.error('加载用户统计失败:', error);
+    }
+}
+</script>
+{{ end }}
