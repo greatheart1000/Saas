@@ -64,6 +64,3 @@ go build -o saas-server ./cmd/server
 
 启动服务器后，可以在 `http://localhost:8080/swagger/index.html` 访问API文档。
 
-## 许可证
-
-MIT# Saas
