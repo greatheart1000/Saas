@@ -1,0 +1,5 @@
+# 忽略整个 crawlee 目录
+crawlee/
+
+# 忽略整个 node_modules 目录
+node_modules/
