@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI客服系统监控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+        .message-user {
+            background: #3b82f6;
+            border-radius: 12px 12px 0 12px;
+        }
+        .message-assistant {
+            background: #475569;
+            border-radius: 12px 12px 12px 0;
+        }
+        .sentiment-normal { color: #22c55e; }
+        .sentiment-warning { color: #f59e0b; }
+        .sentiment-critical { color: #ef4444; }
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">🤖 AI客服系统监控</h1>
+                    <p class="text-slate-400">实时对话监控与分析平台</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2">
+                        <span>🔄</span> 刷新
+                    </button>
+                    <a href="/docs" target="_blank" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg">
+                        📚 API文档
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">总对话数</p>
+                        <p id="stat-sessions" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">💬</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">总消息数</p>
+                        <p id="stat-messages" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">📨</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">平均响应</p>
+                        <p id="stat-response" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">⚡</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">转人工率</p>
+                        <p id="stat-handoff" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">👥</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧：会话列表 -->
+            <div class="card rounded-xl p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span>📋</span> 最近会话
+                </h2>
+                <div id="sessions-list" class="space-y-3">
+                    <div class="loading text-center py-8">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 右侧：会话详情 -->
+            <div class="lg:col-span-2 card rounded-xl p-6">
+                <div id="session-detail">
+                    <div class="text-center py-12 text-slate-400">
+                        <div class="text-6xl mb-4">💭</div>
+                        <p>选择一个会话查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 指标图表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <div class="card rounded-xl p-6">
+                <h2 class="text-xl font-bold mb-4">📊 情绪分布</h2>
+                <canvas id="sentimentChart"></canvas>
+            </div>
+            <div class="card rounded-xl p-6">
+                <h2 class="text-xl font-bold mb-4">🎯 意图分布</h2>
+                <canvas id="intentChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        let sentimentChart, intentChart;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshData();
+            // 每30秒自动刷新
+            setInterval(refreshData, 30000);
+        });
+
+        // 初始化图表
+        function initCharts() {
+            const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
+            sentimentChart = new Chart(sentimentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['正常', '警告', '严重'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#22c55e', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#e2e8f0' }
+                        }
+                    }
+                }
+            });
+
+            const intentCtx = document.getElementById('intentChart').getContext('2d');
+            intentChart = new Chart(intentCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '对话数',
+                        data: [],
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#334155' }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 刷新数据
+        async function refreshData() {
+            try {
+                // 并行请求所有数据
+                const [stats, sessions, metrics] = await Promise.all([
+                    fetch(`${API_BASE}/monitor/stats`).then(r => r.json()),
+                    fetch(`${API_BASE}/monitor/recent-sessions?limit=20`).then(r => r.json()),
+                    fetch(`${API_BASE}/monitor/metrics`).then(r => r.json())
+                ]);
+
+                // 更新统计卡片
+                updateStatCards(stats, metrics);
+
+                // 更新会话列表
+                updateSessionsList(sessions.sessions || []);
+
+                // 更新图表
+                updateCharts(metrics);
+
+            } catch (error) {
+                console.error('刷新数据失败:', error);
+            }
+        }
+
+        // 更新统计卡片
+        function updateStatCards(stats, metrics) {
+            document.getElementById('stat-sessions').textContent = metrics.total_sessions || 0;
+            document.getElementById('stat-messages').textContent = metrics.total_messages || 0;
+            document.getElementById('stat-response').textContent = (metrics.avg_response_time || 0).toFixed(2) + 's';
+            document.getElementById('stat-handoff').textContent = ((metrics.handoff_rate || 0) * 100).toFixed(1) + '%';
+        }
+
+        // 更新会话列表
+        function updateSessionsList(sessions) {
+            const container = document.getElementById('sessions-list');
+
+            if (sessions.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-slate-400">暂无会话</div>';
+                return;
+            }
+
+            container.innerHTML = sessions.map(session => `
+                <div onclick="loadSessionDetail('${session.id}')"
+                     class="p-4 bg-slate-800 hover:bg-slate-700 rounded-lg cursor-pointer transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-slate-400 text-sm">ID:</span>
+                                <span class="text-white font-mono text-sm">${session.id.substring(0, 12)}...</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs">
+                                <span class="text-slate-400">📨 ${session.message_count || 0} 条</span>
+                                <span class="sentiment-${session.sentiment_level || 'normal'}">
+                                    ${getSentimentIcon(session.sentiment_level || 'normal')}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-slate-500 text-xs">
+                            ${formatTime(session.created_at)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 加载会话详情
+        async function loadSessionDetail(sessionId) {
+            const container = document.getElementById('session-detail');
+            container.innerHTML = '<div class="loading text-center py-8">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/monitor/session/${sessionId}`);
+                const session = await response.json();
+
+                // 显示会话详情
+                container.innerHTML = `
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold">📝 会话详情</h2>
+                        <button onclick="deleteSession('${sessionId}')"
+                                class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm">
+                            🗑️ 删除
+                        </button>
+                    </div>
+
+                    <!-- 会话统计 -->
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-slate-800 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-white">${session.message_count}</div>
+                            <div class="text-slate-400 text-sm">消息数</div>
+                        </div>
+                        <div class="bg-slate-800 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-white">${session.user_message_count}</div>
+                            <div class="text-slate-400 text-sm">用户消息</div>
+                        </div>
+                        <div class="bg-slate-800 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-white">${session.assistant_message_count}</div>
+                            <div class="text-slate-400 text-sm">AI回复</div>
+                        </div>
+                    </div>
+
+                    <!-- 摘要 -->
+                    ${session.summary ? `
+                    <div class="bg-slate-800 rounded-lg p-4 mb-6">
+                        <h3 class="font-bold mb-2">📌 对话摘要</h3>
+                        <p class="text-slate-300">${session.summary.summary || '暂无摘要'}</p>
+                        ${session.summary.key_facts && session.summary.key_facts.length > 0 ? `
+                            <div class="mt-3">
+                                <span class="text-slate-400">关键信息:</span>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    ${session.summary.key_facts.map(fact => `
+                                        <span class="px-2 py-1 bg-blue-900 rounded text-xs">${fact}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+
+                    <!-- 消息列表 -->
+                    <div class="space-y-4 max-h-[600px] overflow-y-auto">
+                        ${session.messages.map(msg => renderMessage(msg)).join('')}
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('加载会话详情失败:', error);
+                container.innerHTML = '<div class="text-center py-8 text-red-400">加载失败</div>';
+            }
+        }
+
+        // 渲染消息
+        function renderMessage(msg) {
+            const isUser = msg.role === 'user';
+            const sentiment = msg.sentiment;
+
+            return `
+                <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[80%] ${isUser ? 'message-user' : 'message-assistant'} px-4 py-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-sm opacity-70">${isUser ? '👤 用户' : '🤖 AI'}</span>
+                            ${sentiment ? `
+                                <span class="text-xs px-2 py-0.5 rounded sentiment-${sentiment.level}">
+                                    ${sentiment.level}: ${(sentiment.score * 100).toFixed(0)}%
+                                </span>
+                            ` : ''}
+                        </div>
+                        <p class="text-white">${msg.content}</p>
+                        <div class="text-xs opacity-50 mt-1">${formatTime(msg.timestamp)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 删除会话
+        async function deleteSession(sessionId) {
+            if (!confirm('确定要删除这个会话吗？')) return;
+
+            try {
+                await fetch(`${API_BASE}/monitor/session/${sessionId}`, { method: 'DELETE' });
+                document.getElementById('session-detail').innerHTML = `
+                    <div class="text-center py-12 text-green-400">
+                        <div class="text-6xl mb-4">✅</div>
+                        <p>会话已删除</p>
+                    </div>
+                `;
+                setTimeout(refreshData, 1500);
+            } catch (error) {
+                console.error('删除会话失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        // 更新图表
+        function updateCharts(metrics) {
+            // 情绪分布
+            const sentimentData = metrics.sentiment_distribution || {};
+            sentimentChart.data.datasets[0].data = [
+                sentimentData.normal || 0,
+                sentimentData.warning || 0,
+                sentimentData.critical || 0
+            ];
+            sentimentChart.update();
+
+            // 意图分布
+            const intentData = metrics.intent_distribution || {};
+            intentChart.data.labels = Object.keys(intentData).map(key => {
+                const labels = {
+                    query: '查询',
+                    order_related: '订单',
+                    shipping_related: '物流',
+                    refund_related: '退款',
+                    complaint: '投诉',
+                    technical_issue: '技术',
+                    handoff_request: '转人工'
+                };
+                return labels[key] || key;
+            });
+            intentChart.data.datasets[0].data = Object.values(intentData);
+            intentChart.update();
+        }
+
+        // 辅助函数
+        function formatTime(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+            return date.toLocaleDateString();
+        }
+
+        function getSentimentIcon(level) {
+            const icons = {
+                normal: '😊',
+                warning: '😐',
+                critical: '😠'
+            };
+            return icons[level] || '😐';
+        }
+    </script>
+</body>
+</html>

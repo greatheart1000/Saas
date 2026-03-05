@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库管理 - AI客服系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">📚 知识库管理</h1>
+                    <p class="text-slate-400">管理AI客服的知识文档 - 增删改查</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="openAddModal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2">
+                        <span>➕</span> 添加知识
+                    </button>
+                    <a href="/conversations.html" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+                        💬 对话监控
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- 搜索和筛选 -->
+        <div class="card rounded-xl p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <div class="flex-1">
+                    <input type="text" id="search-input" placeholder="搜索知识文档..."
+                           class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                           onkeyup="handleSearch(event)">
+                </div>
+                <select id="category-filter" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                        onchange="filterByCategory()">
+                    <option value="">所有分类</option>
+                    <option value="订单">订单</option>
+                    <option value="物流">物流</option>
+                    <option value="退款">退款</option>
+                    <option value="售后">售后</option>
+                    <option value="客服">客服</option>
+                    <option value="投诉">投诉</option>
+                </select>
+                <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+                    🔍 搜索
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">总文档数</p>
+                        <p id="stat-total" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">📄</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">订单相关</p>
+                        <p id="stat-order" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">🛒</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">物流相关</p>
+                        <p id="stat-shipping" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">🚚</div>
+                </div>
+            </div>
+            <div class="card rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">退款相关</p>
+                        <p id="stat-refund" class="text-3xl font-bold text-white mt-1">-</p>
+                    </div>
+                    <div class="text-4xl">💰</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 知识列表 -->
+        <div class="card rounded-xl">
+            <div class="p-4 border-b border-slate-700">
+                <h2 class="text-xl font-bold">📋 知识文档列表</h2>
+            </div>
+            <div id="knowledge-list" class="divide-y divide-slate-700">
+                <div class="p-8 text-center text-slate-400">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑模态框 -->
+    <div id="knowledge-modal" class="modal">
+        <div class="card rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="modal-title" class="text-2xl font-bold">添加知识</h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <form id="knowledge-form" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="doc-id">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">标题 *</label>
+                        <input type="text" id="doc-title" required
+                               class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                               placeholder="输入文档标题">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">分类 *</label>
+                        <select id="doc-category" required
+                                class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">
+                            <option value="">选择分类</option>
+                            <option value="订单">订单</option>
+                            <option value="物流">物流</option>
+                            <option value="退款">退款</option>
+                            <option value="售后">售后</option>
+                            <option value="客服">客服</option>
+                            <option value="投诉">投诉</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">内容 *</label>
+                        <textarea id="doc-content" required rows="8"
+                                  class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                                  placeholder="输入知识内容"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">标签</label>
+                        <input type="text" id="doc-tags"
+                               class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                               placeholder="输入标签，用逗号分隔（如：订单,查询,常见问题）">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" onclick="closeModal()"
+                            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg">
+                        取消
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+                        保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        let allDocuments = [];
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadKnowledge();
+        });
+
+        // 加载知识列表
+        async function loadKnowledge() {
+            try {
+                const response = await fetch(`${API_BASE}/knowledge/list`);
+                const data = await response.json();
+
+                allDocuments = data.documents || [];
+                updateStatistics(allDocuments);
+                displayDocuments(allDocuments);
+
+            } catch (error) {
+                console.error('加载知识失败:', error);
+            }
+        }
+
+        // 更新统计信息
+        function updateStatistics(documents) {
+            document.getElementById('stat-total').textContent = documents.length;
+            document.getElementById('stat-order').textContent = documents.filter(d => d.category === '订单').length;
+            document.getElementById('stat-shipping').textContent = documents.filter(d => d.category === '物流').length;
+            document.getElementById('stat-refund').textContent = documents.filter(d => d.category === '退款').length;
+        }
+
+        // 显示文档列表
+        function displayDocuments(documents) {
+            const container = document.getElementById('knowledge-list');
+
+            if (documents.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-400">暂无知识文档</div>';
+                return;
+            }
+
+            container.innerHTML = documents.map(doc => `
+                <div class="p-4 hover:bg-slate-800 transition">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-lg font-bold text-white">${doc.title}</span>
+                                <span class="tag bg-blue-900 text-blue-300">${doc.category || '未分类'}</span>
+                                <span class="text-slate-500 text-xs">${formatTime(doc.created_at)}</span>
+                            </div>
+                            <p class="text-slate-300 text-sm mb-2">${doc.content.substring(0, 150)}${doc.content.length > 150 ? '...' : ''}</p>
+                            ${doc.tags && doc.tags.length > 0 ? `
+                                <div class="flex flex-wrap">
+                                    ${doc.tags.map(tag => `<span class="tag bg-slate-700 text-slate-300">${tag}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="flex gap-2 ml-4">
+                            <button onclick="editDocument('${doc.id}')"
+                                    class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                                编辑
+                            </button>
+                            <button onclick="deleteDocument('${doc.id}')"
+                                    class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 搜索
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        }
+
+        async function performSearch() {
+            const keyword = document.getElementById('search-input').value.trim();
+            const category = document.getElementById('category-filter').value;
+
+            try {
+                let url = `${API_BASE}/knowledge/search?keyword=${encodeURIComponent(keyword)}`;
+                if (category) {
+                    url += `&category=${category}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                displayDocuments(data.documents || []);
+
+            } catch (error) {
+                console.error('搜索失败:', error);
+            }
+        }
+
+        // 分类筛选
+        async function filterByCategory() {
+            const category = document.getElementById('category-filter').value;
+
+            if (!category) {
+                displayDocuments(allDocuments);
+                return;
+            }
+
+            const filtered = allDocuments.filter(doc => doc.category === category);
+            displayDocuments(filtered);
+        }
+
+        // 打开添加模态框
+        function openAddModal() {
+            document.getElementById('modal-title').textContent = '添加知识';
+            document.getElementById('knowledge-form').reset();
+            document.getElementById('doc-id').value = '';
+            document.getElementById('knowledge-modal').classList.add('active');
+        }
+
+        // 编辑文档
+        async function editDocument(docId) {
+            const doc = allDocuments.find(d => d.id === docId);
+            if (!doc) return;
+
+            document.getElementById('modal-title').textContent = '编辑知识';
+            document.getElementById('doc-id').value = doc.id;
+            document.getElementById('doc-title').value = doc.title;
+            document.getElementById('doc-category').value = doc.category || '';
+            document.getElementById('doc-content').value = doc.content;
+            document.getElementById('doc-tags').value = (doc.tags || []).join(', ');
+
+            document.getElementById('knowledge-modal').classList.add('active');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('knowledge-modal').classList.remove('active');
+        }
+
+        // 提交表单
+        async function handleSubmit(event) {
+            event.preventDefault();
+
+            const docId = document.getElementById('doc-id').value;
+            const title = document.getElementById('doc-title').value;
+            const category = document.getElementById('doc-category').value;
+            const content = document.getElementById('doc-content').value;
+            const tagsStr = document.getElementById('doc-tags').value;
+            const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : [];
+
+            const data = {
+                title,
+                category,
+                content,
+                tags
+            };
+
+            try {
+                let url = `${API_BASE}/knowledge/add`;
+                let method = 'POST';
+
+                if (docId) {
+                    url = `${API_BASE}/knowledge/update/${docId}`;
+                    method = 'PUT';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadKnowledge();
+                    alert(docId ? '更新成功！' : '添加成功！');
+                } else {
+                    alert('操作失败！');
+                }
+
+            } catch (error) {
+                console.error('提交失败:', error);
+                alert('操作失败！');
+            }
+        }
+
+        // 删除文档
+        async function deleteDocument(docId) {
+            if (!confirm('确定要删除这个知识文档吗？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/knowledge/delete/${docId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadKnowledge();
+                    alert('删除成功！');
+                } else {
+                    alert('删除失败！');
+                }
+
+            } catch (error) {
+                console.error('删除失败:', error);
+                alert('删除失败！');
+            }
+        }
+
+        // 刷新数据
+        function refreshData() {
+            loadKnowledge();
+        }
+
+        // 格式化时间
+        function formatTime(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN');
+        }
+    </script>
+</body>
+</html>
